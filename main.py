@@ -1,4 +1,7 @@
-input_filename = 'minimap.txt'
+import subprocess
+import sys
+
+input_filename = sys.argv[1]
 
 input_file = open(input_filename, 'r')
 
@@ -71,11 +74,10 @@ for n_tile in map_dict:
 
 
 SAT = False
-goal_iteration = 1
+goal_iteration = 2
 
 while not SAT:
 	tmp_file = open('sokoban{0}.tmp'.format(goal_iteration-1), 'w')
-	tmp_file.write('\n')
 
 	# first write statements that won't change over iterations
 	for neigh in neigbors:
@@ -175,8 +177,8 @@ while not SAT:
 						tmp_file.write('-' + a + ' v -' + b + '\n')
 						added.append('-' + a + ' v -' + b)
 
-	print(actions)
-	print(len(added))
+	# print(actions)
+	# print(len(added))
 
 	tmp_file.write('\n')
 	tmp_file.write('c FRAME PROBLEM\n')
@@ -213,10 +215,25 @@ while not SAT:
 							tmp_file.write('-at(C{3},{0},{2}) v -at(C{3},{1},{2})\n'.format(x,y,i,ci))
 
 
-	goal_iteration += 1
-	if goal_iteration == 5:
-		SAT = True
+	tmp_file.close()
 
+	proc = subprocess.Popen(['python3', 'text2dimacs.py',  'sokoban{0}.tmp'.format(goal_iteration-1)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	dimacs_file = open('sokoban{0}.dimacs'.format(goal_iteration-1), 'w')
+	dimacs_file.write(proc.communicate()[0].decode("utf-8"))
+	dimacs_file.close()
+
+
+	proc = subprocess.Popen(['minisat', 'sokoban{0}.dimacs'.format(goal_iteration-1), 'sokoban{0}.sat'.format(goal_iteration-1)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	print(proc.communicate()[0].decode("utf-8"))
+
+	sat_file = open('sokoban{0}.sat'.format(goal_iteration-1), 'r')
+
+	if sat_file.readline() == 'SAT\n':
+		SAT = True
+	else:
+		sat_file.close()
+		goal_iteration += 1
+	
 
 # move(x,y) pre x,y z <0, n>
 # p+ = {next(x,y), at(S, x)} 
