@@ -21,6 +21,8 @@ A python3 script that solves a Sokoban game represented as planning problem usin
 
 **Sample command:**  python3 main.py map1.txt output.txt
 
+Not tested on OS Windows.
+
 Input: map1.txt
 ```
 ######
