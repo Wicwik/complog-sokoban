@@ -21,7 +21,7 @@ output filename - filepath to where you want to save output
 
 **Sample command:**  python3 main.py map1.txt output.txt
 
-map1.txt
+Input: map1.txt
 ```
 ######
 #s   #
@@ -29,6 +29,9 @@ map1.txt
 #X   #
 ######
 ```
-
+Output: output.txt (also stdout)
+```
+push(C0,13,19,1) move(13,7,2) move(7,8,3) move(8,9,4) move(9,10,5) move(10,16,6) move(16,22,7) move(22,21,8) move(21,20,9) push(C1,14,8,10) push(C2,15,16,11) move(15,9,12) push(C1,8,7,13)
+```
 
 

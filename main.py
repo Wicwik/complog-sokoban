@@ -267,7 +267,6 @@ while not SAT:
 	# if minisat returns SAT, we can stop
 	if sat_file.readline() == 'SAT\n':
 		SAT = True
-		sat_file.close()
 	# else check if maximum steps was set and continue iterating
 	else: 
 		if args.steps is not None and goal_iteration-1 >= args.steps:
@@ -281,6 +280,7 @@ while not SAT:
 # if SAT was found parse the solution from DIMACS variables
 dimacs_file = open('sokoban{0}.dimacs'.format(goal_iteration-1), 'r')
 dimacs_output = sat_file.readline()
+sat_file.close()
 
 # go to variables section
 for line in dimacs_file:
