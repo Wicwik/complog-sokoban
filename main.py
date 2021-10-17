@@ -1,7 +1,16 @@
 import subprocess
 import sys
+import re
+import argparse
 
-input_filename = sys.argv[1]
+parser = argparse.ArgumentParser(description='Find a solution for a Sokoban planning problem.')
+parser.add_argument('input_filename',type=str, help='input map')
+parser.add_argument('output_filename',type=str, help='output file')
+parser.add_argument('-s','--steps',type=int, help='maximum steps')
+args = parser.parse_args()
+
+input_filename = args.input_filename
+output_filename = args.output_filename
 
 input_file = open(input_filename, 'r')
 
@@ -63,11 +72,6 @@ for n_tile in map_dict:
 		if map_dict[n_tile-row_length] != '#':
 			neigbors.append('next({0},{1})'.format(n_tile, n_tile-row_length))
 
-# for n_tile in map_dict:
-# 	if map_dict[n_tile] != '#' and map_dict[n_tile] != ' ':
-# 		for item in map_dict[n_tile]:
-# 			if 'X' in item:
-# 				tmp_file.write(item + '\n')
 
 # TODO: count C and X is equal
 # TODO: count S == 1
@@ -79,12 +83,14 @@ goal_iteration = 2
 while not SAT:
 	tmp_file = open('sokoban{0}.tmp'.format(goal_iteration-1), 'w')
 
+	print('[INFO] Beginning of the {0}. iteration.'.format(goal_iteration-1))
 	# first write statements that won't change over iterations
 	for neigh in neigbors:
 		tmp_file.write(neigh + '\n')
 
 	tmp_file.write('\n')
 
+	print('[INFO] Writing down INITIAL STATE.')
 	tmp_file.write('c INITIAL STATE\n')
 
 	for n_tile in map_dict:
@@ -93,6 +99,7 @@ while not SAT:
 				if 'C' in item or 'S' in item:
 					tmp_file.write(item + '\n')
 
+	print('[INFO] Writing down GOAL STATE.')
 	tmp_file.write('\n')
 	tmp_file.write('c GOAL STATE\n')
 	for n_tile in map_dict:
@@ -105,6 +112,7 @@ while not SAT:
 						else:
 							tmp_file.write(item.replace('X', 'C{0}'.format(ci)).replace(')', ',{0})\n'.format(goal_iteration-1)))
 
+	print('[INFO] Writing down ACTIONS.')
 	tmp_file.write('\n')
 	tmp_file.write('c ACTIONS\n')
 	actions = {}
@@ -154,6 +162,7 @@ while not SAT:
 
 							actions[i].append('push(C{3},{0},{1},{2})'.format(y,z,i,ci))
 
+	print('[INFO] Writing down AT LEAST ONE ACTION HAPPENS.')
 	tmp_file.write('\n')
 	tmp_file.write('c AT LEAST ONE ACTION HAPPENS\n')
 	for i in range(goal_iteration):
@@ -165,21 +174,25 @@ while not SAT:
 					tmp_file.write(a + '\n')
 
 
+	print('[INFO] Writing down EXCLUSIVITY.')
 	tmp_file.write('\n')
 	tmp_file.write('c EXCLUSIVITY\n')
 	
 	for i in range(goal_iteration):
-		added = []
+		#added = []
 		if i != 0:
 			for a in actions[i]:
 				for b in actions[i]:
-					if a != b and ('-' + a + ' v -' + b) not in added and ('-' + b + ' v -' + a) not in added:
-						tmp_file.write('-' + a + ' v -' + b + '\n')
-						added.append('-' + a + ' v -' + b)
+					excl_str = '-' + a + ' v -' + b
+					#excl_str_rev = '-' + b + ' v -' + a + '\n'
+					if a != b: #and excl_str not in added and excl_str_rev not in added:
+						tmp_file.write(excl_str + '\n')
+						#added.append(excl_str)
 
 	# print(actions)
 	# print(len(added))
 
+	print('[INFO] Writing down FRAME PROBLEM.')
 	tmp_file.write('\n')
 	tmp_file.write('c FRAME PROBLEM\n')
 	for i in range(goal_iteration):
@@ -200,6 +213,7 @@ while not SAT:
 								if a != b and a != x and b != x and 'push(C{3},{0},{1},{2})'.format(a,b,i,ci) in actions[i] and x in valid_tiles and cj != ci:
 									tmp_file.write('-at(C{5},{0},{4}) v -push(C{6},{1},{2},{3}) v at(C{5},{0},{3})\n'.format(x,a,b,i,i-1,ci,cj))
 
+	print('[INFO] Writing down BACKGROUND.')
 	tmp_file.write('\n')
 	tmp_file.write('c BACKGROUND\n')
 	for i in range(goal_iteration):
@@ -231,9 +245,41 @@ while not SAT:
 	if sat_file.readline() == 'SAT\n':
 		SAT = True
 	else:
+		if args.steps is not None and goal_iteration-1 >= args.steps:
+			print('[INFO] Step parameter was specified, breaking after {0}. iteration'.format(goal_iteration-1))
+			exit(0)
+
 		sat_file.close()
 		goal_iteration += 1
-	
+
+
+dimacs_file = open('sokoban{0}.dimacs'.format(goal_iteration-1), 'r')
+dimacs_output = sat_file.readline()
+
+for line in dimacs_file:
+	if 'Variables' in line:
+		break
+
+actions_codes = {}
+for line in dimacs_file:
+	if 'move' in line or 'push' in line:
+		splitted = line.split()
+		actions_codes[splitted[1]] = splitted[2]
+
+dimacs_file.close()
+
+output = []
+for code in dimacs_output.split():
+	if (code[0] != '-') and code in actions_codes:
+		output.append(actions_codes[code])
+
+output_file = open(output_filename, 'w')
+for out in sorted(output, key=lambda x: int(re.search(r'(\d+)(?!.*\d)',x).group())):
+	output_file.write(out + ' ')
+	print(out)
+
+output_file.seek((output_file.tell()-1))
+output_file.write('\n')
 
 # move(x,y) pre x,y z <0, n>
 # p+ = {next(x,y), at(S, x)} 
