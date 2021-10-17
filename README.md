@@ -22,10 +22,13 @@ output filename - filepath to where you want to save output
 **Sample command:**  python3 main.py map1.txt output.txt
 
 map1.txt
+```
 ######
 #s   #
 #CCCX#
 #X   #
 ######
+```
+
 
 
