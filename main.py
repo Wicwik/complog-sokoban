@@ -3,6 +3,7 @@ import sys
 import re
 import argparse
 
+# argument parsing
 parser = argparse.ArgumentParser(description='Find a solution for a Sokoban planning problem.')
 parser.add_argument('input_filename',type=str, help='input map')
 parser.add_argument('output_filename',type=str, help='output file')
@@ -25,6 +26,9 @@ n_crates = 0
 
 tile_counter = 0
 
+x_counter = 0
+s_counter = 0
+
 for line in input_file:
 	for c in line:
 		if c == '#':
@@ -35,12 +39,16 @@ for line in input_file:
 		elif c == 'S':
 			map_dict[tile_counter] = ['at(S,{0},0)'.format(tile_counter)]
 			valid_tiles.append(tile_counter)
+			s_counter += 1
 		elif c == 's':
 			map_dict[tile_counter] = ['at(X,{0})'.format(tile_counter), 'at(S,{0},0)'.format(tile_counter)]
 			valid_tiles.append(tile_counter)
+			x_counter += 1
+			s_counter += 1
 		elif c == 'X':
 			map_dict[tile_counter] = ['at(X,{0})'.format(tile_counter)]
 			valid_tiles.append(tile_counter)
+			x_counter += 1
 		elif c == 'C':
 			map_dict[tile_counter] = ['at(C{1},{0},0)'.format(tile_counter, n_crates)]
 			valid_tiles.append(tile_counter)
@@ -48,6 +56,7 @@ for line in input_file:
 		elif c == 'c':
 			map_dict[tile_counter] = ['at(X,{0})'.format(tile_counter), 'at(C{1},{0},0)'.format(tile_counter, n_crates)]
 			valid_tiles.append(tile_counter)
+			x_counter += 1
 			n_crates += 1
 		elif c == '\n':
 			continue
@@ -55,8 +64,6 @@ for line in input_file:
 		tile_counter += 1
 
 input_file.close()
-
-# col_length = tile_counter/row_length
 
 for n_tile in map_dict:
 	if map_dict[n_tile] != '#':
@@ -73,8 +80,9 @@ for n_tile in map_dict:
 			neigbors.append('next({0},{1})'.format(n_tile, n_tile-row_length))
 
 
-# TODO: count C and X is equal
-# TODO: count S == 1
+if s_counter != 1 or x_counter != n_crates:
+	print('[ERROR] Invalid map. Exiting.')
+	exit(1)
 
 
 SAT = False
