@@ -1,3 +1,4 @@
+# author: Robert Belanec
 import subprocess
 import sys
 import re
@@ -29,6 +30,7 @@ tile_counter = 0
 x_counter = 0
 s_counter = 0
 
+# parse map into a dictionary
 for line in input_file:
 	for c in line:
 		if c == '#':
@@ -65,6 +67,7 @@ for line in input_file:
 
 input_file.close()
 
+# go through the map dict and check for neighbors
 for n_tile in map_dict:
 	if map_dict[n_tile] != '#':
 		if map_dict[n_tile+1] != '#':
@@ -79,14 +82,14 @@ for n_tile in map_dict:
 		if map_dict[n_tile-row_length] != '#':
 			neigbors.append('next({0},{1})'.format(n_tile, n_tile-row_length))
 
-
+# if invalid number of sokobans or invalid number of X and coresponding crates is on the map
 if s_counter != 1 or x_counter != n_crates:
 	print('[ERROR] Invalid map. Exiting.')
 	exit(1)
 
-
+# begin the SAT cycle
 SAT = False
-goal_iteration = 2
+goal_iteration = 2 # this is the current i - iteration, we set to 2 on the first run because for goes from 0 to n-1
 
 while not SAT:
 	tmp_file = open('sokoban{0}.tmp'.format(goal_iteration-1), 'w')
@@ -101,12 +104,14 @@ while not SAT:
 	print('[INFO] Writing down INITIAL STATE.')
 	tmp_file.write('c INITIAL STATE\n')
 
+	# initial state are C and S fluents from map dict
 	for n_tile in map_dict:
 		if map_dict[n_tile] != '#' and map_dict[n_tile] != ' ':
 			for item in map_dict[n_tile]:
 				if 'C' in item or 'S' in item:
 					tmp_file.write(item + '\n')
 
+	# goal state is replaced X with C in map dict and added current iteration number
 	print('[INFO] Writing down GOAL STATE.')
 	tmp_file.write('\n')
 	tmp_file.write('c GOAL STATE\n')
@@ -120,6 +125,7 @@ while not SAT:
 						else:
 							tmp_file.write(item.replace('X', 'C{0}'.format(ci)).replace(')', ',{0})\n'.format(goal_iteration-1)))
 
+	# write actions based on STRIPS notation provided in documetation
 	print('[INFO] Writing down ACTIONS.')
 	tmp_file.write('\n')
 	tmp_file.write('c ACTIONS\n')
@@ -186,6 +192,7 @@ while not SAT:
 	tmp_file.write('\n')
 	tmp_file.write('c EXCLUSIVITY\n')
 	
+	# commented reverse string checking and it really speeded up the exclusivity part
 	for i in range(goal_iteration):
 		#added = []
 		if i != 0:
@@ -197,9 +204,9 @@ while not SAT:
 						tmp_file.write(excl_str + '\n')
 						#added.append(excl_str)
 
-	# print(actions)
-	# print(len(added))
-
+    # not proud of this, but cannot find a solution to simplify this 6 for cycles
+    # if sokoban moved, crates stay
+    # if one crate moves, other crates stay
 	print('[INFO] Writing down FRAME PROBLEM.')
 	tmp_file.write('\n')
 	tmp_file.write('c FRAME PROBLEM\n')
@@ -221,6 +228,9 @@ while not SAT:
 								if a != b and a != x and b != x and 'push(C{3},{0},{1},{2})'.format(a,b,i,ci) in actions[i] and x in valid_tiles and cj != ci:
 									tmp_file.write('-at(C{5},{0},{4}) v -push(C{6},{1},{2},{3}) v at(C{5},{0},{3})\n'.format(x,a,b,i,i-1,ci,cj))
 
+	# backgound is also not a best solution, but faster than frame problem
+	# Sokoban cannot be at 2 places at one state
+	# Crate cannot be at 2 places at one state
 	print('[INFO] Writing down BACKGROUND.')
 	tmp_file.write('\n')
 	tmp_file.write('c BACKGROUND\n')
@@ -239,35 +249,45 @@ while not SAT:
 
 	tmp_file.close()
 
+	# create subprocess to run text2dimacs.py
+	# store output in file
 	proc = subprocess.Popen(['python3', 'text2dimacs.py',  'sokoban{0}.tmp'.format(goal_iteration-1)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	dimacs_file = open('sokoban{0}.dimacs'.format(goal_iteration-1), 'w')
 	dimacs_file.write(proc.communicate()[0].decode("utf-8"))
 	dimacs_file.close()
 
 
+	# create subprocess to run minisat
+	# store output in file and print stats to stdout
 	proc = subprocess.Popen(['minisat', 'sokoban{0}.dimacs'.format(goal_iteration-1), 'sokoban{0}.sat'.format(goal_iteration-1)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	print(proc.communicate()[0].decode("utf-8"))
 
 	sat_file = open('sokoban{0}.sat'.format(goal_iteration-1), 'r')
 
+	# if minisat returns SAT, we can stop
 	if sat_file.readline() == 'SAT\n':
 		SAT = True
-	else:
+		sat_file.close()
+	# else check if maximum steps was set and continue iterating
+	else: 
 		if args.steps is not None and goal_iteration-1 >= args.steps:
 			print('[INFO] Step parameter was specified, breaking after {0}. iteration'.format(goal_iteration-1))
+			sat_file.close()
 			exit(0)
 
 		sat_file.close()
 		goal_iteration += 1
 
-
+# if SAT was found parse the solution from DIMACS variables
 dimacs_file = open('sokoban{0}.dimacs'.format(goal_iteration-1), 'r')
 dimacs_output = sat_file.readline()
 
+# go to variables section
 for line in dimacs_file:
 	if 'Variables' in line:
 		break
 
+# get push and move actions 
 actions_codes = {}
 for line in dimacs_file:
 	if 'move' in line or 'push' in line:
@@ -276,19 +296,22 @@ for line in dimacs_file:
 
 dimacs_file.close()
 
+# for each dimacs output from minisat, if its not negated and its in actions variables append it to ouput
 output = []
 for code in dimacs_output.split():
 	if (code[0] != '-') and code in actions_codes:
 		output.append(actions_codes[code])
 
+# sort output by its last number and prind and save to output file
 output_file = open(output_filename, 'w')
 for out in sorted(output, key=lambda x: int(re.search(r'(\d+)(?!.*\d)',x).group())):
 	output_file.write(out + ' ')
 	print(out)
 
-output_file.seek((output_file.tell()-1))
+output_file.seek((output_file.tell()-1)) # remove last ' ' and write \n
 output_file.write('\n')
 
+# my notes when writing this program :-)
 # move(x,y) pre x,y z <0, n>
 # p+ = {next(x,y), at(S, x)} 
 # p- = {at(C, y)}
