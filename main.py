@@ -204,9 +204,10 @@ while not SAT:
 						tmp_file.write(excl_str + '\n')
 						#added.append(excl_str)
 
-    # not proud of this, but cannot find a solution to simplify this 6 for cycles
-    # if sokoban moved, crates stay
-    # if one crate moves, other crates stay
+	# not proud of this, but cannot find a solution to simplify this 6 for cycles
+	# if sokoban moved, crates stay
+	# if one crate moves, other crates stay
+
 	print('[INFO] Writing down FRAME PROBLEM.')
 	tmp_file.write('\n')
 	tmp_file.write('c FRAME PROBLEM\n')

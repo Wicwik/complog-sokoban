@@ -12,6 +12,11 @@ A python3 script that solves a Sokoban game represented as planning problem usin
 - output filename - filepath to where you want to save output
 - -s --steps (optional) - maximum number of iterations
 
+## System requirements
+- \*nix OS
+- Python3.6 or newer
+- Minisat SAT solver 
+
 ## How to run
 1. git clone https://github.com/Wicwik/complog-sokoban.git
 2. cd complog-sokoban
@@ -36,4 +41,4 @@ Output: output.txt (also stdout)
 push(C0,13,19,1) move(13,7,2) move(7,8,3) move(8,9,4) move(9,10,5) move(10,16,6) move(16,22,7) move(22,21,8) move(21,20,9) push(C1,14,8,10) push(C2,15,16,11) move(15,9,12) push(C1,8,7,13)
 ```
 
-
+Our program also creates 3 files for each step. File sokoban.tmp contains whole encoding, sokoban.dimacs contains our encoding converted to DIMACS and sokoban.sat containing the minisat output.
